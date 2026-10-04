@@ -38,7 +38,7 @@ def query_balance(key):
 def main():
     key = API_KEY.strip()
     if not key:
-        key = input("请把 API Key 粘贴到这里，然后按回车：***REMOVED***").strip()
+        key = input("请把 API Key 粘贴到这里，然后按回车：").strip()
     if not key:
         print("没有输入 Key，已退出。")
         return 1
