@@ -9,6 +9,7 @@ import urllib.request
 from flask import Flask, render_template, request, jsonify
 import balance_tracker
 import exchange_rate
+from auth import require_auth
 
 app = Flask(__name__)
 
@@ -72,6 +73,7 @@ def test():
 
 
 @app.route('/api/query', methods=['POST'])
+@require_auth
 def api_query():
     """余额查询 API 端点"""
     data = request.get_json()

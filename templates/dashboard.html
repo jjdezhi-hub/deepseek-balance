@@ -675,10 +675,19 @@
             queryBtn.innerHTML = '<span class="spinner"></span>查询中...';
 
             try {
+                // 获取访问密码（如果设置了环境变量）
+                const accessPassword = prompt('请输入访问密码（如果管理员已设置）：');
+
                 const response = await fetch('/api/query', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ api_key: apiKey }),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Access-Password': accessPassword || ''
+                    },
+                    body: JSON.stringify({
+                        api_key: apiKey,
+                        password: accessPassword || ''
+                    }),
                 });
 
                 const data = await response.json();
