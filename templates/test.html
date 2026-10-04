@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>DeepSeek 余额查询测试</h2>
+
+        <input type="text" id="apiKey" placeholder="输入 API Key (sk-...)">
+        <button onclick="queryBalance()">查询余额</button>
+
+        <div id="result"></div>
+        <div id="log">
+            <strong>调试日志：</strong><br>
+            等待操作...
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<br>[${time}] ${message}`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        async function queryBalance() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const resultDiv = document.getElementById('result');
+
+            log('=== 开始查询 ===');
+            log('API Key 长度: ' + apiKey.length);
+            log('API Key 前缀: ' + apiKey.substring(0, 5));
+
+            if (!apiKey) {
+                log('错误: API Key 为空');
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = '请输入 API Key';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            if (!apiKey.startsWith('sk-')) {
+                log('错误: API Key 格式不正确');
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = 'API Key 应该以 sk- 开头';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                log('准备发送 POST 请求到 /api/query');
+                const requestBody = { api_key: apiKey };
+                log('请求体: ' + JSON.stringify(requestBody));
+
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody),
+                });
+
+                log('收到响应，状态码: ' + response.status);
+                log('响应头 Content-Type: ' + response.headers.get('Content-Type'));
+
+                const data = await response.json();
+                log('响应数据: ' + JSON.stringify(data, null, 2));
+
+                if (data.success) {
+                    log('查询成功！');
+                    const balance = data.data.balance_infos[0];
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+                        <strong>查询成功！</strong><br>
+                        账户状态: ${data.data.is_available ? '可用' : '不可用'}<br>
+                        币种: ${balance.currency}<br>
+                        总余额: ${balance.total_balance}<br>
+                        充值余额: ${balance.topped_up_balance}<br>
+                        赠金余额: ${balance.granted_balance}
+                    `;
+                    resultDiv.style.display = 'block';
+                } else {
+                    log('查询失败: ' + data.error);
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = '<strong>查询失败</strong><br>' + data.error;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                log('发生异常: ' + error.toString());
+                log('错误堆栈: ' + error.stack);
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = '<strong>请求失败</strong><br>' + error.message;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        // 页面加载完成
+        log('页面加载完成');
+        log('当前 URL: ' + window.location.href);
+    </script>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek 余额查询</title>
+    <style>
+        :root {
+            --surface-0: #05070C;
+            --surface-1: #0A0D12;
+            --surface-2: #0F131C;
+            --surface-3: #161D2B;
+            --surface-4: #1E2636;
+            --accent: #38BDF8;
+            --accent-dim: #1E3A5F;
+            --text-primary: #E8EDF2;
+            --text-secondary: #9BA8B8;
+            --text-tertiary: #6B7A8F;
+            --success: #6EE7B7;
+            --error: #EF4444;
+            --warning: #F59E0B;
+
+            --space-xs: clamp(0.5rem, 0.5vw + 0.25rem, 0.75rem);
+            --space-sm: clamp(0.75rem, 1vw + 0.5rem, 1rem);
+            --space-md: clamp(1rem, 2vw + 0.5rem, 1.5rem);
+            --space-lg: clamp(1.5rem, 3vw + 0.75rem, 2.5rem);
+            --space-xl: clamp(2rem, 5vw + 1rem, 4rem);
+
+            --radius-sm: 0.5rem;
+            --radius-md: 1rem;
+            --radius-lg: 1.5rem;
+            --radius-pill: 999px;
+
+            --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--surface-0);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: var(--space-md);
+            font-size: clamp(0.9375rem, 0.5vw + 0.875rem, 1rem);
+            line-height: 1.6;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 42rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: var(--space-xl);
+        }
+
+        .title {
+            font-family: var(--font-display);
+            font-size: clamp(1.75rem, 3vw + 1rem, 2.5rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--success) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: var(--space-sm);
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: clamp(0.875rem, 0.5vw + 0.75rem, 1rem);
+        }
+
+        .card {
+            background: var(--surface-2);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.5);
+        }
+
+        .form-group {
+            margin-bottom: var(--space-md);
+        }
+
+        .label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: var(--space-xs);
+        }
+
+        .input {
+            width: 100%;
+            background: var(--surface-3);
+            border: 1px solid transparent;
+            border-radius: var(--radius-md);
+            padding: var(--space-sm) var(--space-md);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--surface-4);
+        }
+
+        .input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .button {
+            width: 100%;
+            background: var(--accent);
+            color: var(--surface-0);
+            border: none;
+            border-radius: var(--radius-pill);
+            padding: var(--space-sm) var(--space-lg);
+            font-family: var(--font-body);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .button:hover:not(:disabled) {
+            background: #4AC5F8;
+            transform: translateY(-1px);
+        }
+
+        .button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: var(--space-lg);
+            padding: var(--space-md);
+            border-radius: var(--radius-md);
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.success {
+            background: rgba(110, 231, 183, 0.1);
+            border: 1px solid rgba(110, 231, 183, 0.3);
+        }
+
+        .result.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .result-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: var(--space-sm);
+        }
+
+        .result.success .result-title {
+            color: var(--success);
+        }
+
+        .result.error .result-title {
+            color: var(--error);
+        }
+
+        .balance-grid {
+            display: grid;
+            gap: var(--space-md);
+        }
+
+        .balance-card {
+            background: var(--surface-3);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+        }
+
+        .balance-row {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: var(--space-md);
+            padding: var(--space-xs) 0;
+        }
+
+        .balance-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .balance-value {
+            color: var(--text-primary);
+            font-weight: 600;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius-pill);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-badge.available {
+            background: rgba(110, 231, 183, 0.2);
+            color: var(--success);
+        }
+
+        .status-badge.unavailable {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        .error-message {
+            color: var(--error);
+            line-height: 1.5;
+        }
+
+        .spinner {
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid var(--surface-0);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">DeepSeek 余额查询</h1>
+            <p class="subtitle">输入您的 API Key 查看账户余额</p>
+        </div>
+
+        <div class="card">
+            <form id="queryForm">
+                <div class="form-group">
+                    <label class="label" for="apiKey">API Key</label>
+                    <input
+                        type="text"
+                        id="apiKey"
+                        class="input"
+                        placeholder="sk-xxxxxxxxxxxxxxxx"
+                        autocomplete="off"
+                    >
+                </div>
+
+                <button type="submit" class="button" id="submitBtn">
+                    查询余额
+                </button>
+            </form>
+
+            <div id="result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('queryForm');
+        const apiKeyInput = document.getElementById('apiKey');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultDiv = document.getElementById('result');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const apiKey = apiKeyInput.value.trim();
+
+            if (!apiKey) {
+                showError('请输入 API Key');
+                return;
+            }
+
+            if (!apiKey.startsWith('sk-')) {
+                showError('API Key 格式错误，应以 sk- 开头');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span>查询中...';
+            resultDiv.className = 'result';
+
+            try {
+                console.log('发送查询请求...');
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ api_key: apiKey }),
+                });
+
+                console.log('响应状态:', response.status);
+                const data = await response.json();
+                console.log('响应数据:', data);
+
+                if (data.success) {
+                    showSuccess(data.data);
+                } else {
+                    showError(data.error);
+                }
+            } catch (error) {
+                console.error('请求错误:', error);
+                showError('查询失败: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '查询余额';
+            }
+        });
+
+        function showSuccess(data) {
+            const isAvailable = data.is_available;
+            const balanceInfos = data.balance_infos || [];
+
+            let html = `
+                <div class="result-title">查询成功</div>
+                <div class="balance-row">
+                    <span class="balance-label">账户状态</span>
+                    <span class="balance-value">
+                        <span class="status-badge ${isAvailable ? 'available' : 'unavailable'}">
+                            ${isAvailable ? '可用' : '不可用'}
+                        </span>
+                    </span>
+                </div>
+            `;
+
+            if (balanceInfos.length > 0) {
+                html += '<div class="balance-grid">';
+
+                balanceInfos.forEach(info => {
+                    html += `
+                        <div class="balance-card">
+                            <div class="balance-row">
+                                <span class="balance-label">币种</span>
+                                <span class="balance-value">${info.currency || '-'}</span>
+                            </div>
+                            <div class="balance-row">
+                                <span class="balance-label">总余额</span>
+                                <span class="balance-value">${formatNumber(info.total_balance)}</span>
+                            </div>
+                            <div class="balance-row">
+                                <span class="balance-label">充值余额</span>
+                                <span class="balance-value">${formatNumber(info.topped_up_balance)}</span>
+                            </div>
+                            <div class="balance-row">
+                                <span class="balance-label">赠金余额</span>
+                                <span class="balance-value">${formatNumber(info.granted_balance)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+            }
+
+            resultDiv.className = 'result success show';
+            resultDiv.innerHTML = html;
+        }
+
+        function showError(message) {
+            resultDiv.className = 'result error show';
+            resultDiv.innerHTML = `
+                <div class="result-title">查询失败</div>
+                <div class="error-message">${message}</div>
+            `;
+        }
+
+        function formatNumber(value) {
+            if (value === null || value === undefined) return '-';
+            return typeof value === 'number' ? value.toFixed(2) : value;
+        }
+    </script>
+</body>
+</html>

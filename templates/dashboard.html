@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek 余额追踪</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --surface-1: #05070C;
+            --surface-2: #0A0D12;
+            --surface-3: #0F131C;
+            --surface-4: #161D2B;
+            --surface-5: #1E2636;
+            --accent: #38BDF8;
+            --accent-dim: #0284C7;
+            --accent-glow: rgba(56, 189, 248, 0.3);
+            --success: #6EE7B7;
+            --success-dim: #059669;
+            --warning: #FCD34D;
+            --error: #F87171;
+            --error-dim: #DC2626;
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --text-dim: #64748B;
+            --gradient-1: linear-gradient(135deg, #0F131C 0%, #161D2B 100%);
+            --gradient-accent: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            background: var(--surface-1);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: clamp(1rem, 3vw, 2rem);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: clamp(1.5rem, 4vw, 3rem);
+            text-align: center;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.03em;
+            background: var(--gradient-accent);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: clamp(0.875rem, 2vw, 1.125rem);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .rate-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--surface-4);
+            padding: 0.375rem 0.875rem;
+            border-radius: 999px;
+            font-weight: 600;
+            color: var(--accent);
+            border: 1px solid var(--surface-5);
+        }
+
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            color: var(--accent);
+            background: var(--surface-5);
+            transform: rotate(180deg);
+        }
+
+        .query-section {
+            background: var(--gradient-1);
+            padding: clamp(1.25rem, 3vw, 2rem);
+            border-radius: 20px;
+            margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+            border: 1px solid var(--surface-4);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1rem;
+            align-items: start;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            background: var(--surface-2);
+            border: 2px solid var(--surface-5);
+            border-radius: 16px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: 'SF Mono', 'Courier New', monospace;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+            transform: translateY(-1px);
+        }
+
+        input[type="text"]::placeholder {
+            color: var(--text-dim);
+        }
+
+        button {
+            padding: 1rem 2rem;
+            background: var(--gradient-accent);
+            color: white;
+            border: none;
+            border-radius: 999px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+            box-shadow: 0 4px 16px rgba(56, 189, 248, 0.3);
+            letter-spacing: 0.01em;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(56, 189, 248, 0.4);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+        }
+
+        .stat-card {
+            background: var(--gradient-1);
+            padding: 1.75rem;
+            border-radius: 20px;
+            border: 1px solid var(--surface-4);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-accent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+            border-color: var(--surface-5);
+        }
+
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .stat-icon.current {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent);
+        }
+
+        .stat-icon.baseline {
+            background: rgba(110, 231, 183, 0.15);
+            color: var(--success);
+        }
+
+        .stat-icon.consumed {
+            background: rgba(248, 113, 113, 0.15);
+            color: var(--error);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: clamp(1.75rem, 4vw, 2.5rem);
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .stat-value.consumed {
+            color: var(--error);
+        }
+
+        .stat-value.remaining {
+            color: var(--success);
+        }
+
+        .stat-sub {
+            color: var(--text-dim);
+            font-size: 0.9375rem;
+            font-weight: 500;
+        }
+
+        .currency-toggle {
+            display: inline-flex;
+            background: var(--surface-2);
+            padding: 0.25rem;
+            border-radius: 999px;
+            gap: 0.25rem;
+            margin-top: 0.75rem;
+        }
+
+        .currency-btn {
+            padding: 0.375rem 0.875rem;
+            background: transparent;
+            color: var(--text-dim);
+            border: none;
+            border-radius: 999px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .currency-btn.active {
+            background: var(--surface-5);
+            color: var(--text-primary);
+        }
+
+        .controls-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .period-selector {
+            display: inline-flex;
+            gap: 0.5rem;
+            background: var(--surface-3);
+            padding: 0.375rem;
+            border-radius: 999px;
+            border: 1px solid var(--surface-4);
+        }
+
+        .period-btn {
+            padding: 0.625rem 1.25rem;
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            border-radius: 999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .period-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .period-btn.active {
+            background: var(--gradient-accent);
+            color: white;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+        }
+
+        .view-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border-radius: 12px;
+            background: var(--surface-3);
+            border: 1px solid var(--surface-4);
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: none;
+        }
+
+        .icon-btn:hover {
+            background: var(--surface-4);
+            color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-container {
+            background: var(--gradient-1);
+            padding: 2rem;
+            border-radius: 20px;
+            border: 1px solid var(--surface-4);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .chart-title-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.125rem;
+        }
+
+        .chart-title-icon.consumption {
+            background: rgba(248, 113, 113, 0.15);
+        }
+
+        .chart-title-icon.balance {
+            background: rgba(56, 189, 248, 0.15);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 350px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+            background: var(--gradient-1);
+            border-radius: 20px;
+            border: 1px solid var(--surface-4);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.4;
+        }
+
+        .empty-state-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid white;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .input-group {
+                grid-template-columns: 1fr;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .controls-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .period-selector {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .chart-wrapper {
+                height: 280px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 DeepSeek 余额追踪</h1>
+            <div class="subtitle">
+                <span>实时监控 API 消耗</span>
+                <span class="rate-badge">
+                    <span id="exchangeRate">加载中...</span>
+                    <button class="refresh-btn" onclick="refreshRate()" title="刷新汇率">
+                        ↻
+                    </button>
+                </span>
+            </div>
+        </header>
+
+        <div class="query-section">
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <input type="text" id="apiKey" placeholder="输入 DeepSeek API Key (sk-...)">
+                </div>
+                <button id="queryBtn" onclick="queryBalance()">查询余额</button>
+            </div>
+            <div id="errorMessage"></div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon current">💎</div>
+                    <div class="stat-label">当前余额</div>
+                </div>
+                <div class="stat-value" id="currentBalance">-</div>
+                <div class="stat-sub" id="currentBalanceUSD">-</div>
+                <div class="currency-toggle">
+                    <button class="currency-btn active" onclick="switchCurrency('cny')">CNY</button>
+                    <button class="currency-btn" onclick="switchCurrency('usd')">USD</button>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon baseline">🎯</div>
+                    <div class="stat-label">初始余额</div>
+                </div>
+                <div class="stat-value remaining" id="baselineBalance">-</div>
+                <div class="stat-sub" id="baselineBalanceUSD">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon consumed">🔥</div>
+                    <div class="stat-label">总消耗</div>
+                </div>
+                <div class="stat-value consumed" id="totalConsumed">-</div>
+                <div class="stat-sub" id="totalConsumedUSD">-</div>
+            </div>
+        </div>
+
+        <div id="chartsSection" style="display: none;">
+            <div class="controls-section">
+                <div class="period-selector">
+                    <button class="period-btn active" data-period="daily" onclick="switchPeriod('daily')">每日</button>
+                    <button class="period-btn" data-period="weekly" onclick="switchPeriod('weekly')">每周</button>
+                    <button class="period-btn" data-period="monthly" onclick="switchPeriod('monthly')">每月</button>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">
+                            <span class="chart-title-icon consumption">📊</span>
+                            消耗趋势
+                        </h3>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="consumptionChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">
+                            <span class="chart-title-icon balance">📈</span>
+                            余额变化
+                        </h3>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="balanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <div class="empty-state-title">开始追踪你的 API 消耗</div>
+            <p>输入 API Key 并查询余额，查看详细的消耗分析和趋势图表</p>
+        </div>
+    </div>
+
+    <script>
+        let consumptionChart = null;
+        let balanceChart = null;
+        let currentPeriod = 'daily';
+        let currentCurrency = 'cny';
+        let statsData = null;
+        let currentExchangeRate = 6.72;
+
+        // 加载汇率
+        async function loadExchangeRate() {
+            try {
+                const response = await fetch('/api/exchange-rate');
+                const result = await response.json();
+
+                if (result.success) {
+                    currentExchangeRate = result.rate;
+                    document.getElementById('exchangeRate').textContent = `1 USD = ${result.rate.toFixed(4)} CNY`;
+                }
+            } catch (error) {
+                console.error('加载汇率失败:', error);
+                document.getElementById('exchangeRate').textContent = '汇率加载失败';
+            }
+        }
+
+        // 刷新汇率
+        async function refreshRate() {
+            try {
+                const response = await fetch('/api/refresh-rate', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    currentExchangeRate = result.rate;
+                    document.getElementById('exchangeRate').textContent = `1 USD = ${result.rate.toFixed(4)} CNY`;
+
+                    // 重新加载统计数据
+                    if (statsData) {
+                        await loadStats();
+                    }
+                }
+            } catch (error) {
+                console.error('刷新汇率失败:', error);
+            }
+        }
+
+        async function queryBalance() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const queryBtn = document.getElementById('queryBtn');
+            const errorMessage = document.getElementById('errorMessage');
+
+            errorMessage.innerHTML = '';
+
+            if (!apiKey) {
+                showError('请输入 API Key');
+                return;
+            }
+
+            if (!apiKey.startsWith('sk-')) {
+                showError('API Key 格式错误，应以 sk- 开头');
+                return;
+            }
+
+            queryBtn.disabled = true;
+            queryBtn.innerHTML = '<span class="spinner"></span>查询中...';
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_key: apiKey }),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    await loadStats();
+                } else {
+                    showError(data.error);
+                }
+            } catch (error) {
+                showError('查询失败: ' + error.message);
+            } finally {
+                queryBtn.disabled = false;
+                queryBtn.textContent = '查询余额';
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const result = await response.json();
+
+                if (result.success) {
+                    statsData = result.data;
+                    updateUI();
+                }
+            } catch (error) {
+                showError('加载统计数据失败: ' + error.message);
+            }
+        }
+
+        function updateUI() {
+            if (!statsData || !statsData.current) {
+                return;
+            }
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('statsGrid').style.display = 'grid';
+            document.getElementById('chartsSection').style.display = 'block';
+
+            // 更新统计卡片
+            const current = statsData.current;
+            const baseline = statsData.baseline;
+
+            if (currentCurrency === 'cny') {
+                document.getElementById('currentBalance').textContent = `¥${current.balance_cny.toFixed(2)}`;
+                document.getElementById('currentBalanceUSD').textContent = `$${current.balance_usd.toFixed(2)} USD`;
+
+                if (baseline) {
+                    document.getElementById('baselineBalance').textContent = `¥${baseline.balance_cny.toFixed(2)}`;
+                    document.getElementById('baselineBalanceUSD').textContent = `$${baseline.balance_usd.toFixed(2)} USD`;
+                }
+
+                document.getElementById('totalConsumed').textContent = `¥${statsData.total_consumed_cny.toFixed(2)}`;
+                document.getElementById('totalConsumedUSD').textContent = `$${statsData.total_consumed_usd.toFixed(2)} USD`;
+            } else {
+                document.getElementById('currentBalance').textContent = `$${current.balance_usd.toFixed(2)}`;
+                document.getElementById('currentBalanceUSD').textContent = `¥${current.balance_cny.toFixed(2)} CNY`;
+
+                if (baseline) {
+                    document.getElementById('baselineBalance').textContent = `$${baseline.balance_usd.toFixed(2)}`;
+                    document.getElementById('baselineBalanceUSD').textContent = `¥${baseline.balance_cny.toFixed(2)} CNY`;
+                }
+
+                document.getElementById('totalConsumed').textContent = `$${statsData.total_consumed_usd.toFixed(2)}`;
+                document.getElementById('totalConsumedUSD').textContent = `¥${statsData.total_consumed_cny.toFixed(2)} CNY`;
+            }
+
+            // 更新图表
+            updateCharts();
+        }
+
+        function switchCurrency(currency) {
+            currentCurrency = currency;
+
+            document.querySelectorAll('.currency-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            if (statsData) {
+                updateUI();
+            }
+        }
+
+        function updateCharts() {
+            const periodData = statsData[currentPeriod];
+
+            if (!periodData || periodData.length === 0) {
+                return;
+            }
+
+            // 准备标签
+            const labels = periodData.map(d => {
+                if (currentPeriod === 'daily') return d.date;
+                if (currentPeriod === 'weekly') return `${d.week_start}`;
+                return d.month;
+            });
+
+            const isCNY = currentCurrency === 'cny';
+            const consumedData = periodData.map(d => (isCNY ? d.consumed_cny : d.consumed_usd).toFixed(2));
+            const balanceData = periodData.map(d => (isCNY ? d.end_balance_cny : d.end_balance_usd).toFixed(2));
+            const currencySymbol = isCNY ? '¥' : '$';
+
+            // 消耗柱状图 - 渐变色
+            if (consumptionChart) {
+                consumptionChart.destroy();
+            }
+
+            const ctxConsumption = document.getElementById('consumptionChart').getContext('2d');
+            const gradientConsumption = ctxConsumption.createLinearGradient(0, 0, 0, 400);
+            gradientConsumption.addColorStop(0, 'rgba(248, 113, 113, 0.9)');
+            gradientConsumption.addColorStop(1, 'rgba(220, 38, 38, 0.7)');
+
+            consumptionChart = new Chart(ctxConsumption, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `消耗 (${isCNY ? 'CNY' : 'USD'})`,
+                        data: consumedData,
+                        backgroundColor: gradientConsumption,
+                        borderColor: 'transparent',
+                        borderWidth: 0,
+                        borderRadius: 12,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 19, 28, 0.95)',
+                            titleColor: '#F8FAFC',
+                            bodyColor: '#94A3B8',
+                            borderColor: '#1E2636',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: (context) => `消耗: ${currencySymbol}${context.parsed.y}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.08)',
+                                drawBorder: false,
+                            },
+                            border: { display: false },
+                            ticks: {
+                                color: '#64748B',
+                                font: { size: 12, weight: '600' },
+                                callback: value => `${currencySymbol}${value}`
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            border: { display: false },
+                            ticks: {
+                                color: '#64748B',
+                                font: { size: 12, weight: '600' }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 余额曲线图 - 渐变填充
+            if (balanceChart) {
+                balanceChart.destroy();
+            }
+
+            const ctxBalance = document.getElementById('balanceChart').getContext('2d');
+            const gradientBalance = ctxBalance.createLinearGradient(0, 0, 0, 400);
+            gradientBalance.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
+            gradientBalance.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+            balanceChart = new Chart(ctxBalance, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `剩余余额 (${isCNY ? 'CNY' : 'USD'})`,
+                        data: balanceData,
+                        borderColor: '#38BDF8',
+                        backgroundColor: gradientBalance,
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: '#38BDF8',
+                        pointBorderColor: '#0F131C',
+                        pointBorderWidth: 3,
+                        pointHoverBackgroundColor: '#38BDF8',
+                        pointHoverBorderColor: '#F8FAFC',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 19, 28, 0.95)',
+                            titleColor: '#F8FAFC',
+                            bodyColor: '#94A3B8',
+                            borderColor: '#1E2636',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: (context) => `余额: ${currencySymbol}${context.parsed.y}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.08)',
+                                drawBorder: false,
+                            },
+                            border: { display: false },
+                            ticks: {
+                                color: '#64748B',
+                                font: { size: 12, weight: '600' },
+                                callback: value => `${currencySymbol}${value}`
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            border: { display: false },
+                            ticks: {
+                                color: '#64748B',
+                                font: { size: 12, weight: '600' }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function switchPeriod(period) {
+            currentPeriod = period;
+
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-period="${period}"]`).classList.add('active');
+
+            if (statsData) {
+                updateCharts();
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.innerHTML = `<div class="error-message">⚠️ ${message}</div>`;
+        }
+
+        // 页面加载时尝试加载已有数据
+        window.addEventListener('load', async () => {
+            // 先加载汇率
+            await loadExchangeRate();
+
+            // 再加载统计数据
+            const response = await fetch('/api/stats');
+            const result = await response.json();
+
+            if (result.success && result.data.current) {
+                statsData = result.data;
+                updateUI();
+            }
+        });
+    </script>
+</body>
+</html>
